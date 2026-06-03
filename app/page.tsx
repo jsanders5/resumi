@@ -141,10 +141,10 @@ export default function Home() {
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             {/* Logo mark */}
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 relative"
-              style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' }}>
-              <span className="text-white font-black text-lg leading-none">R</span>
-              <div className="absolute top-1 right-1.5 w-1.5 h-1.5 rounded-full bg-white/80" />
+            <div className="w-8 h-8 rounded flex items-center justify-center shrink-0 relative"
+              style={{ background: '#1e293b', border: '2px solid #6366f1' }}>
+              <span className="text-purple-400 font-black text-lg leading-none" style={{color: '#6366f1' }}>R</span>
+              <span className="absolute" style={{ top: '4px', right: '2px', color: '#6366f1', fontSize: '6px', fontWeight: 'bold', lineHeight: '1' }}>AI</span>
             </div>
             <div>
               <h1 className="text-xl font-bold text-white tracking-tight">Resumio-AI</h1>

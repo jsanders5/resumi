@@ -10,39 +10,40 @@ export default function Icon() {
         style={{
           width: 32,
           height: 32,
-          borderRadius: 8,
-          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+          borderRadius: 4,
+          background: '#1e293b',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           position: 'relative',
+          border: '2px solid #6366f1',
         }}
       >
-        {/* Bold R */}
         <span
           style={{
-            color: 'white',
-            fontSize: 20,
+            color: '#6366f1',
+            fontSize: 18,
             fontWeight: 900,
-            fontFamily: 'sans-serif',
+            fontFamily: 'monospace',
             lineHeight: 1,
-            marginBottom: 1,
+            position: 'relative',
           }}
         >
           R
+          <span
+            style={{
+              position: 'absolute',
+              top: -2,
+              right: -4,
+              color: '#6366f1',
+              fontSize: 6,
+              fontWeight: 700,
+              fontFamily: 'monospace',
+            }}
+          >
+            AI
+          </span>
         </span>
-        {/* Sparkle dot top-right */}
-        <div
-          style={{
-            position: 'absolute',
-            top: 4,
-            right: 5,
-            width: 4,
-            height: 4,
-            borderRadius: '50%',
-            background: 'rgba(255,255,255,0.9)',
-          }}
-        />
       </div>
     ),
     { ...size }
