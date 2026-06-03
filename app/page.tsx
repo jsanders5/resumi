@@ -4,6 +4,7 @@ import { useState, useRef, useCallback } from 'react';
 import { Upload, Search, FileText, RotateCcw, Loader2 } from 'lucide-react';
 import JobCard from '@/components/JobCard';
 import LocationInput from '@/components/LocationInput';
+import SearchProgress from '@/components/SearchProgress';
 import { Turnstile } from '@marsidev/react-turnstile';
 import type { ScoredJob } from '@/lib/types';
 
@@ -21,6 +22,7 @@ export default function Home() {
   const [resumeText, setResumeText] = useState('');
   const [resumeEmbedding, setResumeEmbedding] = useState<number[]>([]);
   const [turnstileToken, setTurnstileToken] = useState('');
+  const [turnstileVerified, setTurnstileVerified] = useState(false);
   const [fileName, setFileName] = useState('');
   const [query, setQuery] = useState('');
   const [location, setLocation] = useState('');
@@ -28,6 +30,7 @@ export default function Home() {
   const [jobs, setJobs] = useState<ScoredJob[]>([]);
   const [loadingMsg, setLoadingMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -97,7 +100,7 @@ export default function Home() {
       if (!query.trim()) return;
       setError('');
       setIsLoading(true);
-      startLoadingCycle(1);
+      setIsSearching(true);
 
       try {
         const res = await fetch('/api/search-jobs', {
@@ -112,12 +115,12 @@ export default function Home() {
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Something went wrong');
       } finally {
-        stopLoadingCycle();
+        setIsSearching(false);
         setIsLoading(false);
         setLoadingMsg('');
       }
     },
-    [query, location, resumeText, startLoadingCycle, stopLoadingCycle]
+    [query, location, resumeText, resumeEmbedding, turnstileToken]
   );
 
   const reset = useCallback(() => {
@@ -204,13 +207,16 @@ export default function Home() {
           </div>
         )}
 
-        {/* Loading overlay */}
-        {isLoading && (
+        {/* Resume upload spinner (fast, ~1-2s) */}
+        {isLoading && !isSearching && (
           <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center z-50 gap-4">
             <Loader2 size={36} className="text-indigo-400 animate-spin" />
             <p className="text-slate-300 text-sm">{loadingMsg}</p>
           </div>
         )}
+
+        {/* Search progress bar (20-30s) */}
+        <SearchProgress isLoading={isSearching} />
 
         {/* Phase: Upload */}
         {phase === 'upload' && (
@@ -282,22 +288,30 @@ export default function Home() {
                 <label className="block text-xs text-slate-500 mb-1.5">Location (optional)</label>
                 <LocationInput value={location} onChange={setLocation} />
               </div>
-              {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
-                <Turnstile
-                  siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-                  onSuccess={setTurnstileToken}
-                  onExpire={() => setTurnstileToken('')}
-                  onError={() => setTurnstileToken('')}
-                  options={{ theme: 'dark' }}
-                />
+              {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && !turnstileVerified && (
+                <div className="flex flex-col gap-1">
+                  <Turnstile
+                    siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+                    onSuccess={(token) => {
+                      setTurnstileToken(token);
+                      setTurnstileVerified(true);
+                    }}
+                    onExpire={() => setTurnstileToken('')}
+                    onError={() => setTurnstileToken('')}
+                    options={{ theme: 'dark' }}
+                  />
+                  {!turnstileToken && (
+                    <p className="text-xs text-slate-500">Waiting for security check to complete...</p>
+                  )}
+                </div>
               )}
               <button
                 type="submit"
-                disabled={Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) && !turnstileToken}
+                disabled={Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) && !turnstileVerified}
                 className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-6 py-3 rounded-lg transition-colors mt-2"
               >
                 <Search size={16} />
-                Find Jobs
+                {Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) && !turnstileVerified ? 'Verifying...' : 'Find Jobs'}
               </button>
             </form>
           </div>
