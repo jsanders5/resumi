@@ -329,7 +329,7 @@ export default function Home() {
                   </span>
                 </h2>
                 <button
-                  onClick={() => { setPhase('search'); setTurnstileToken(''); }}
+                  onClick={() => { setPhase('search'); setTurnstileToken(''); setTurnstileVerified(false); }}
                   className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1"
                 >
                   <Search size={12} />
