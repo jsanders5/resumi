@@ -1,5 +1,6 @@
 import { jsearchScraper } from './jsearch';
 import { linkedinScraper } from './linkedin';
+import { adzunaScraper } from './adzuna';
 import type { JobScraper } from './types';
 import type { Job, ScraperMeta } from '../types';
 
@@ -7,6 +8,7 @@ import type { Job, ScraperMeta } from '../types';
 export const scrapers: Record<string, JobScraper> = {
   jsearch: jsearchScraper,
   linkedin: linkedinScraper,
+  adzuna: adzunaScraper,
 };
 
 export const scraperMeta: ScraperMeta[] = Object.values(scrapers).map(

@@ -10,16 +10,18 @@ const HEADERS = {
   'Cache-Control': 'no-cache',
 };
 
+const LISTING_TIMEOUT_MS = 8_000;
+const DESCRIPTION_TIMEOUT_MS = 5_000;
+
 async function fetchJobDescription(jobId: string): Promise<string> {
   try {
     const res = await fetch(
       `https://www.linkedin.com/jobs-guest/jobs/api/jobPosting/${jobId}`,
-      { headers: HEADERS }
+      { headers: HEADERS, signal: AbortSignal.timeout(DESCRIPTION_TIMEOUT_MS) }
     );
     if (!res.ok) return '';
     const html = await res.text();
     const $ = load(html);
-    // Try a few selectors LinkedIn has used over time
     return (
       $('.show-more-less-html__markup').text().trim() ||
       $('.description__text').text().trim() ||
@@ -39,19 +41,18 @@ async function searchLinkedIn(query: string, location: string): Promise<Job[]> {
   url.searchParams.set('start', '0');
   url.searchParams.set('count', '10');
 
-  const res = await fetch(url.toString(), { headers: HEADERS });
+  const res = await fetch(url.toString(), {
+    headers: HEADERS,
+    signal: AbortSignal.timeout(LISTING_TIMEOUT_MS),
+  });
   if (!res.ok) throw new Error(`LinkedIn returned ${res.status}`);
 
   const html = await res.text();
   const $ = load(html);
 
   const stubs: {
-    id: string;
-    title: string;
-    company: string;
-    location: string;
-    url: string;
-    datePosted: string;
+    id: string; title: string; company: string;
+    location: string; url: string; datePosted: string;
   }[] = [];
 
   $('li').each((_, el) => {
@@ -64,8 +65,7 @@ async function searchLinkedIn(query: string, location: string): Promise<Job[]> {
     const href =
       card.find('a.base-card__full-link').attr('href') ??
       card.find('a').first().attr('href') ?? '';
-    const datetime =
-      card.find('time').attr('datetime') ?? new Date().toISOString();
+    const datetime = card.find('time').attr('datetime') ?? new Date().toISOString();
 
     if (jobId && title) {
       stubs.push({ id: jobId, title, company, location: loc, url: href, datePosted: datetime });
@@ -74,7 +74,7 @@ async function searchLinkedIn(query: string, location: string): Promise<Job[]> {
 
   if (stubs.length === 0) return [];
 
-  // Fetch descriptions in parallel
+  // Each description fetch has its own 5s timeout; a blocked request fails fast
   const descriptions = await Promise.all(stubs.map((s) => fetchJobDescription(s.id)));
 
   return stubs.map((s, i) => ({

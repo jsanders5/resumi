@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ExternalLink, MapPin, Briefcase, AlertCircle, ChevronDown, Loader2, BarChart2, GitBranch } from 'lucide-react';
 import GitHubCard from './GitHubCard';
 import ScoreAnalysis from './ScoreAnalysis';
-import type { ScoredJob, GitHubRecommendation } from '@/lib/types';
+import type { ScoredJob, JobDetails } from '@/lib/types';
 
 type Tab = 'analysis' | 'portfolio';
 
@@ -43,16 +43,17 @@ function formatDate(iso: string) {
 export default function JobCard({ job, resumeText }: { job: ScoredJob; resumeText: string }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('analysis');
-  const [recs, setRecs] = useState<GitHubRecommendation[] | null>(null);
-  const [isLoadingRecs, setIsLoadingRecs] = useState(false);
-  const [recsError, setRecsError] = useState('');
+  const [details, setDetails] = useState<JobDetails | null>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [detailsError, setDetailsError] = useState('');
 
   async function handleExpand() {
     const next = !isExpanded;
     setIsExpanded(next);
-    if (next && recs === null && !isLoadingRecs) {
-      setIsLoadingRecs(true);
-      setRecsError('');
+    // Fetch recs on first expand (analysis data already in job from initial search)
+    if (next && details === null && !isLoadingDetails) {
+      setIsLoadingDetails(true);
+      setDetailsError('');
       try {
         const res = await fetch('/api/job-recs', {
           method: 'POST',
@@ -60,12 +61,12 @@ export default function JobCard({ job, resumeText }: { job: ScoredJob; resumeTex
           body: JSON.stringify({ resumeText, job }),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? 'Failed to load recommendations');
-        setRecs(data.recommendations);
+        if (!res.ok) throw new Error(data.error ?? 'Failed to load details');
+        setDetails(data);
       } catch (err) {
-        setRecsError(err instanceof Error ? err.message : 'Failed to load recommendations');
+        setDetailsError(err instanceof Error ? err.message : 'Failed to load details');
       } finally {
-        setIsLoadingRecs(false);
+        setIsLoadingDetails(false);
       }
     }
   }
@@ -83,11 +84,12 @@ export default function JobCard({ job, resumeText }: { job: ScoredJob; resumeTex
               <h3 className="text-white font-semibold text-base leading-tight truncate">{job.title}</h3>
               {job.source && (
                 <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${
-                  job.source === 'linkedin'
-                    ? 'bg-blue-600/20 text-blue-400'
-                    : 'bg-slate-700 text-slate-400'
+                  job.source === 'linkedin' ? 'bg-blue-600/20 text-blue-400' :
+                  job.source === 'adzuna'   ? 'bg-orange-500/20 text-orange-400' :
+                                              'bg-slate-700 text-slate-400'
                 }`}>
-                  {job.source === 'linkedin' ? 'LinkedIn' : 'JSearch'}
+                  {job.source === 'linkedin' ? 'LinkedIn' :
+                   job.source === 'adzuna'   ? 'Adzuna' : 'JSearch'}
                 </span>
               )}
             </div>
@@ -169,9 +171,9 @@ export default function JobCard({ job, resumeText }: { job: ScoredJob; resumeTex
             >
               <GitBranch size={12} />
               Portfolio Projects
-              {recs && (
+              {details && (
                 <span className="ml-1 bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded-full text-xs">
-                  {recs.length}
+                  {details.recommendations.length}
                 </span>
               )}
             </button>
@@ -183,14 +185,14 @@ export default function JobCard({ job, resumeText }: { job: ScoredJob; resumeTex
 
             {activeTab === 'portfolio' && (
               <div className="flex flex-col gap-3">
-                {isLoadingRecs && (
+                {isLoadingDetails && (
                   <div className="flex items-center gap-2 text-slate-500 text-sm py-2">
                     <Loader2 size={14} className="animate-spin" />
-                    Generating targeted recommendations...
+                    Generating portfolio recommendations...
                   </div>
                 )}
-                {recsError && <p className="text-xs text-rose-400">{recsError}</p>}
-                {recs && recs.map((rec, i) => (
+                {detailsError && <p className="text-xs text-rose-400">{detailsError}</p>}
+                {details?.recommendations.map((rec, i) => (
                   <GitHubCard key={i} rec={rec} compact />
                 ))}
               </div>

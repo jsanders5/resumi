@@ -3,28 +3,28 @@
 import { useState, useRef, useCallback } from 'react';
 import { Upload, Search, FileText, RotateCcw, Loader2 } from 'lucide-react';
 import JobCard from '@/components/JobCard';
+import LocationInput from '@/components/LocationInput';
+import { Turnstile } from '@marsidev/react-turnstile';
 import type { ScoredJob } from '@/lib/types';
 
 type Phase = 'upload' | 'search' | 'results';
 
 const LOADING_MESSAGES = [
-  'Parsing your resume...',
+  'Parsing resume & extracting skills...',
   'Searching for matching jobs...',
-  'Scoring compatibility with AI...',
-];
-
-const SOURCE_OPTIONS = [
-  { id: 'linkedin', name: 'LinkedIn', description: 'Direct scrape' },
-  { id: 'jsearch', name: 'JSearch', description: 'Indeed + LinkedIn API' },
+  'Ranking by semantic similarity...',
+  'Scoring top matches with AI...',
 ];
 
 export default function Home() {
   const [phase, setPhase] = useState<Phase>('upload');
   const [resumeText, setResumeText] = useState('');
+  const [resumeEmbedding, setResumeEmbedding] = useState<number[]>([]);
+  const [turnstileToken, setTurnstileToken] = useState('');
   const [fileName, setFileName] = useState('');
   const [query, setQuery] = useState('');
   const [location, setLocation] = useState('');
-  const [sources, setSources] = useState<Record<string, boolean>>({ linkedin: true, jsearch: true });
+
   const [jobs, setJobs] = useState<ScoredJob[]>([]);
   const [loadingMsg, setLoadingMsg] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -58,7 +58,7 @@ export default function Home() {
       }
       setError('');
       setIsLoading(true);
-      setLoadingMsg('Parsing your resume...');
+      startLoadingCycle(0);
 
       try {
         const formData = new FormData();
@@ -67,16 +67,18 @@ export default function Home() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? 'Failed to parse resume');
         setResumeText(data.text);
+        setResumeEmbedding(data.embedding ?? []);
         setFileName(file.name);
         setPhase('search');
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to parse resume');
       } finally {
+        stopLoadingCycle();
         setIsLoading(false);
         setLoadingMsg('');
       }
     },
-    []
+    [startLoadingCycle, stopLoadingCycle]
   );
 
   const handleDrop = useCallback(
@@ -101,12 +103,7 @@ export default function Home() {
         const res = await fetch('/api/search-jobs', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            query,
-            location,
-            resumeText,
-            sources: Object.entries(sources).filter(([, on]) => on).map(([id]) => id),
-          }),
+          body: JSON.stringify({ query, location, resumeText, resumeEmbedding, turnstileToken }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? 'Failed to search jobs');
@@ -120,12 +117,13 @@ export default function Home() {
         setLoadingMsg('');
       }
     },
-    [query, location, resumeText, sources, startLoadingCycle, stopLoadingCycle]
+    [query, location, resumeText, startLoadingCycle, stopLoadingCycle]
   );
 
   const reset = useCallback(() => {
     setPhase('upload');
     setResumeText('');
+    setResumeEmbedding([]);
     setFileName('');
     setQuery('');
     setLocation('');
@@ -138,9 +136,17 @@ export default function Home() {
       {/* Header */}
       <header className="border-b border-slate-800 px-6 py-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-white tracking-tight">resumi</h1>
-            <p className="text-xs text-slate-500">AI-powered job matching & portfolio advisor</p>
+          <div className="flex items-center gap-3">
+            {/* Logo mark */}
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 relative"
+              style={{ background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)' }}>
+              <span className="text-white font-black text-lg leading-none">R</span>
+              <div className="absolute top-1 right-1.5 w-1.5 h-1.5 rounded-full bg-white/80" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-white tracking-tight">Resumio-AI</h1>
+              <p className="text-xs text-slate-500">AI-powered job matching & portfolio advisor</p>
+            </div>
           </div>
           {phase !== 'upload' && (
             <button
@@ -255,62 +261,39 @@ export default function Home() {
             </div>
             <h2 className="text-2xl font-bold text-white mb-2">What are you looking for?</h2>
             <p className="text-slate-400 text-sm mb-8">
-              Enter a job title and optional location to search live listings and score them against
-              your resume.
+              Search live job listings and score them against your resume.
             </p>
             <form onSubmit={handleSearch} className="flex flex-col gap-4">
               <div>
-                <label className="block text-xs text-slate-500 mb-1.5">Job Title</label>
+                <label className="block text-xs text-slate-500 mb-1.5">
+                  Job Title(s)
+                  <span className="ml-2 text-slate-600">comma-separate multiple titles</span>
+                </label>
                 <input
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="e.g. Software Engineer, Data Scientist"
+                  placeholder="e.g. Software Engineer, Data Scientist, ML Engineer"
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
                   required
                 />
               </div>
               <div>
                 <label className="block text-xs text-slate-500 mb-1.5">Location (optional)</label>
-                <input
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="e.g. New York, Remote"
-                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
+                <LocationInput value={location} onChange={setLocation} />
+              </div>
+              {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+                <Turnstile
+                  siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+                  onSuccess={setTurnstileToken}
+                  onExpire={() => setTurnstileToken('')}
+                  onError={() => setTurnstileToken('')}
+                  options={{ theme: 'dark' }}
                 />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-500 mb-2">Sources</label>
-                <div className="flex gap-3">
-                  {SOURCE_OPTIONS.map(({ id, name, description }) => {
-                    const on = sources[id] ?? false;
-                    return (
-                      <button
-                        key={id}
-                        type="button"
-                        onClick={() => setSources((s) => ({ ...s, [id]: !s[id] }))}
-                        className={`flex-1 flex items-center justify-between px-3 py-2 rounded-lg border text-left transition-colors ${
-                          on
-                            ? 'border-indigo-500 bg-indigo-500/10'
-                            : 'border-slate-700 bg-slate-900 opacity-50'
-                        }`}
-                      >
-                        <div>
-                          <p className="text-xs font-semibold text-white">{name}</p>
-                          <p className="text-xs text-slate-500">{description}</p>
-                        </div>
-                        <div className={`w-8 h-4 rounded-full flex items-center transition-colors ${on ? 'bg-indigo-500' : 'bg-slate-700'}`}>
-                          <div className={`w-3 h-3 rounded-full bg-white shadow transition-transform mx-0.5 ${on ? 'translate-x-4' : ''}`} />
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              )}
               <button
                 type="submit"
-                disabled={!Object.values(sources).some(Boolean)}
+                disabled={Boolean(process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) && !turnstileToken}
                 className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold px-6 py-3 rounded-lg transition-colors mt-2"
               >
                 <Search size={16} />
@@ -357,6 +340,17 @@ export default function Home() {
           </div>
         )}
       </main>
+
+      <footer className="border-t border-slate-800 mt-16 py-6 px-6">
+        <div className="max-w-5xl mx-auto flex items-center justify-between text-xs text-slate-600">
+          <span>© {new Date().getFullYear()} Resumio-AI</span>
+          <div className="flex gap-4 items-center">
+            <a href="https://buymeacoffee.com/jsanders" target="_blank" rel="noopener noreferrer" className="hover:text-yellow-400 transition-colors">☕ Buy me a coffee</a>
+            <a href="/privacy" className="hover:text-slate-400 transition-colors">Privacy Policy</a>
+            <a href="/terms" className="hover:text-slate-400 transition-colors">Terms of Service</a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

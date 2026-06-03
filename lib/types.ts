@@ -18,12 +18,13 @@ export interface ScraperMeta {
 }
 
 export interface ScoreBreakdown {
-  skills: number;        // how well resume skills match required skills
-  experience: number;    // seniority / years-of-experience alignment
-  domain: number;        // industry / domain knowledge match
-  requirements: number;  // % of listed requirements met
+  skills: number;
+  experience: number;
+  domain: number;
+  requirements: number;
 }
 
+// Full analysis returned by initial search — score is always the breakdown average
 export interface ScoredJob extends Job {
   score: number;
   matchReason: string;
@@ -32,6 +33,11 @@ export interface ScoredJob extends Job {
   matchedSkills: string[];
   strengths: string[];
   gaps: string[];
+}
+
+// Returned on card expand — only the GitHub recommendations (analysis already in ScoredJob)
+export interface JobDetails {
+  recommendations: GitHubRecommendation[];
 }
 
 export interface GitHubRecommendation {
