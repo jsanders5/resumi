@@ -22,7 +22,7 @@ export const metadata: Metadata = {
     title: "Resumio-AI – AI Job Matcher & Portfolio Advisor",
     description: "Free AI job matcher. Upload your resume, search real jobs, get AI compatibility scores, and discover portfolio projects to boost your candidacy.",
     type: "website",
-    url: "https://resumio-ai.vercel.app",
+    url: "https://myresumio.app",
     images: [
       {
         url: "/og-image.png",
@@ -64,7 +64,7 @@ export default function RootLayout({
               "@type": "WebApplication",
               name: "Resumio-AI",
               description: "Free AI job matcher that uploads your resume, searches real jobs, provides AI compatibility scores, and recommends portfolio projects to boost your candidacy.",
-              url: "https://resumio-ai.vercel.app",
+              url: "https://myresumio.app",
               applicationCategory: "UtilityApplication",
               offers: {
                 "@type": "Offer",
