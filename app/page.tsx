@@ -11,8 +11,13 @@ import type { ResumeProfile } from '@/lib/claude';
 
 type Phase = 'upload' | 'search' | 'results';
 
+const UPLOAD_MESSAGES = [
+  'Extracting text from resume...',
+  'Generating semantic embedding...',
+  'Analyzing your profile...',
+];
+
 const LOADING_MESSAGES = [
-  'Parsing resume & extracting skills...',
   'Searching for matching jobs...',
   'Ranking by semantic similarity...',
   'Scoring top matches with AI...',
@@ -63,7 +68,13 @@ export default function Home() {
       }
       setError('');
       setIsLoading(true);
-      startLoadingCycle(0);
+      // Show upload-specific messages
+      loadingIndexRef.current = 0;
+      setLoadingMsg(UPLOAD_MESSAGES[0]);
+      loadingIntervalRef.current = setInterval(() => {
+        loadingIndexRef.current = (loadingIndexRef.current + 1) % UPLOAD_MESSAGES.length;
+        setLoadingMsg(UPLOAD_MESSAGES[loadingIndexRef.current]);
+      }, 2000);
 
       try {
         const formData = new FormData();
