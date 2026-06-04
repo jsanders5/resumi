@@ -39,6 +39,8 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState('');
+  const [rankingSkipped, setRankingSkipped] = useState(false);
+  const [showRankingToast, setShowRankingToast] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const loadingIndexRef = useRef(0);
@@ -64,6 +66,8 @@ export default function Home() {
     async (file: File) => {
       if (!file.name.endsWith('.pdf') && !file.name.endsWith('.txt')) {
         setError('Please upload a PDF or .txt file.');
+        // Reset file input so it can be used again
+        if (fileInputRef.current) fileInputRef.current.value = '';
         return;
       }
       setError('');
@@ -86,9 +90,13 @@ export default function Home() {
         setResumeEmbedding(data.embedding ?? []);
         setResumeProfile(data.profile ?? null);
         setFileName(file.name);
+        // Reset file input so it can be used again
+        if (fileInputRef.current) fileInputRef.current.value = '';
         setPhase('search');
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to parse resume');
+        // Reset file input so it can be used again
+        if (fileInputRef.current) fileInputRef.current.value = '';
       } finally {
         stopLoadingCycle();
         setIsLoading(false);
@@ -125,6 +133,11 @@ export default function Home() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? 'Failed to search jobs');
         setJobs(data.jobs);
+        setRankingSkipped(data.rankingSkipped ?? false);
+        if (data.rankingSkipped) {
+          setShowRankingToast(true);
+          setTimeout(() => setShowRankingToast(false), 3000);
+        }
         setPhase('results');
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Something went wrong');
@@ -147,6 +160,10 @@ export default function Home() {
     setLocation('');
     setJobs([]);
     setError('');
+    setTurnstileToken('');
+    setTurnstileVerified(false);
+    setRankingSkipped(false);
+    setShowRankingToast(false);
   }, []);
 
   return (
@@ -156,31 +173,33 @@ export default function Home() {
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             {/* Logo mark */}
-            <div className="w-8 h-8 rounded flex items-center justify-center shrink-0 relative"
+            <div className="w-10 h-10 rounded flex items-center justify-center shrink-0 relative"
               style={{ background: '#1e293b', border: '2px solid #6366f1' }}>
-              <span className="text-purple-400 font-black text-lg leading-none" style={{color: '#6366f1' }}>R</span>
-              <span className="absolute" style={{ top: '4px', right: '2px', color: '#6366f1', fontSize: '6px', fontWeight: 'bold', lineHeight: '1' }}>AI</span>
+              <span className="text-purple-400 font-black text-xl leading-none" style={{color: '#6366f1' }}>R</span>
+              <span className="absolute" style={{ top: '6px', right: '3px', color: '#6366f1', fontSize: '8px', fontWeight: 'bold', lineHeight: '1' }}>AI</span>
             </div>
             <div>
               <h1 className="text-xl font-bold text-white tracking-tight">Resumio-AI</h1>
               <p className="text-xs text-slate-500">AI-powered job matching & portfolio advisor</p>
             </div>
           </div>
-          {phase !== 'upload' && (
-            <button
-              onClick={reset}
-              className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition-colors"
+          <div className="flex items-center gap-3">
+            <a
+              href="https://buymeacoffee.com/jsanders"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-colors border border-amber-500/20 hover:border-amber-500/40"
+              title="Support the development of Resumio-AI"
             >
-              <RotateCcw size={14} />
-              Start over
-            </button>
-          )}
+              ☕ Buy me a coffee
+            </a>
+          </div>
         </div>
       </header>
 
       <main className="max-w-5xl mx-auto px-6 py-10">
         {/* Step indicator */}
-        <div className="flex items-center gap-2 mb-10">
+        <div className="flex items-center justify-center gap-2 mb-10">
           {(['Upload Resume', 'Search Jobs', 'Results'] as const).map((step, i) => {
             const stepPhase: Phase[] = ['upload', 'search', 'results'];
             const isCurrent = stepPhase[i] === phase;
@@ -261,24 +280,38 @@ export default function Home() {
               </div>
               <p className="text-slate-600 text-xs">PDF or .txt · Max 10 MB</p>
             </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.txt"
-              className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
-            />
           </div>
         )}
+
+        {/* Hidden file input — accessible from all phases */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.txt"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            console.log('File selected:', f?.name);
+            if (f) handleFile(f);
+          }}
+        />
 
         {/* Phase: Search */}
         {phase === 'search' && (
           <div className="max-w-lg mx-auto">
-            <div className="flex items-center gap-2 mb-8 bg-slate-900 border border-slate-800 rounded-lg px-4 py-3">
-              <FileText size={16} className="text-emerald-400 shrink-0" />
-              <span className="text-sm text-slate-300">
-                <span className="text-emerald-400 font-medium">{fileName}</span> loaded successfully
-              </span>
+            <div className="flex items-center justify-between gap-3 mb-8 bg-slate-900 border border-slate-800 rounded-lg px-4 py-3">
+              <div className="flex items-center gap-2">
+                <FileText size={16} className="text-emerald-400 shrink-0" />
+                <span className="text-sm text-slate-300">
+                  <span className="text-emerald-400 font-medium">{fileName}</span> loaded successfully
+                </span>
+              </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="text-xs text-slate-400 hover:text-slate-300 transition-colors px-2 py-1 rounded hover:bg-slate-800"
+              >
+                Change
+              </button>
             </div>
             <h2 className="text-2xl font-bold text-white mb-2">What are you looking for?</h2>
             <p className="text-slate-400 text-sm mb-8">
@@ -313,7 +346,9 @@ export default function Home() {
                 />
               </div>
               <div>
-                <label className="block text-xs text-slate-500 mb-1.5">Location (optional)</label>
+                <label className="block text-xs text-slate-500 mb-1.5">
+                  Location <span className="text-slate-600">(optional — specific cities give 5-10x better results)</span>
+                </label>
                 <LocationInput value={location} onChange={setLocation} />
               </div>
               {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && !turnstileVerified && (
@@ -347,29 +382,66 @@ export default function Home() {
 
         {/* Phase: Results */}
         {phase === 'results' && (
-          <div className="flex flex-col gap-10">
+          <div className="max-w-2xl mx-auto flex flex-col gap-10">
+            {/* Toast notification */}
+            {showRankingToast && (
+              <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-amber-500/20 border border-amber-500/40 rounded-lg px-4 py-3 text-sm text-amber-300 z-40 animate-in fade-in duration-300">
+                Ranking temporarily unavailable — showing default order
+              </div>
+            )}
+
             <section>
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-white">
-                  {jobs.length} Jobs Found
-                  <span className="text-slate-500 font-normal text-sm ml-2">
-                    for &ldquo;{query}&rdquo;{location ? ` · ${location}` : ''}
-                  </span>
-                </h2>
-                <button
-                  onClick={() => { setPhase('search'); setTurnstileToken(''); setTurnstileVerified(false); }}
-                  className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors flex items-center gap-1"
-                >
-                  <Search size={12} />
-                  New search
-                </button>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-bold text-white">
+                    {jobs.length} Jobs Found
+                    <span className="text-slate-500 font-normal text-sm ml-2">
+                      for &ldquo;{query}&rdquo;{location ? ` · ${location}` : ''}
+                    </span>
+                  </h2>
+                  {rankingSkipped && (
+                    <span className="bg-amber-500/20 text-amber-400 text-xs px-2 py-1 rounded-md font-medium">
+                      default order
+                    </span>
+                  )}
+                  {!rankingSkipped && jobs.length > 0 && (
+                    <span className="bg-emerald-500/20 text-emerald-400 text-xs px-2 py-1 rounded-md font-medium">
+                      AI-ranked
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => { setPhase('search'); setTurnstileToken(''); setTurnstileVerified(false); }}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 transition-colors border border-indigo-500/20 hover:border-indigo-500/40 text-xs font-medium"
+                  >
+                    <Search size={12} />
+                    New search
+                  </button>
+                  <button
+                    onClick={reset}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800/50 text-slate-400 hover:bg-slate-700 transition-colors border border-slate-700 hover:border-slate-600 text-xs font-medium"
+                  >
+                    <RotateCcw size={12} />
+                    Start over
+                  </button>
+                </div>
               </div>
+
+              {!location && jobs.length > 0 && (
+                <div className="bg-slate-900 border border-slate-800 rounded-lg px-4 py-3 mb-4">
+                  <p className="text-xs text-slate-400">
+                    💡 <span className="text-slate-300">Tip: Searching by specific city (e.g., "San Francisco, CA") typically yields 5-10x more relevant results.</span>
+                  </p>
+                </div>
+              )}
+
               {jobs.length === 0 ? (
                 <p className="text-slate-500 text-sm">No jobs found. Try a different query.</p>
               ) : (
                 <>
-                  <p className="text-xs text-slate-500 mb-4">
-                    Click any card to see portfolio projects tailored to that role.
+                  <p className="text-sm text-slate-300 mb-6 font-medium">
+                    Click any card to see your score analysis and recommended project ideas to add to your portfolio.
                   </p>
                   <div className="grid gap-4 sm:grid-cols-2">
                     {jobs.map((job) => (
@@ -387,7 +459,6 @@ export default function Home() {
         <div className="max-w-5xl mx-auto flex items-center justify-between text-xs text-slate-600">
           <span>© {new Date().getFullYear()} Resumio-AI</span>
           <div className="flex gap-4 items-center">
-            <a href="https://buymeacoffee.com/jsanders" target="_blank" rel="noopener noreferrer" className="hover:text-yellow-400 transition-colors">☕ Buy me a coffee</a>
             <a href="/privacy" className="hover:text-slate-400 transition-colors">Privacy Policy</a>
             <a href="/terms" className="hover:text-slate-400 transition-colors">Terms of Service</a>
           </div>

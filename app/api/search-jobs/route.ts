@@ -32,12 +32,24 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const cleanLocation = (location ?? '').trim();
+    const rawLocation = (location ?? '').trim();
+    const isRemote = rawLocation.toLowerCase() === 'remote';
+    const isHybrid = rawLocation.toLowerCase() === 'hybrid';
+
+    // Use location as-is, or empty if Remote/Hybrid
+    const cleanLocation = isRemote || isHybrid ? '' : rawLocation;
+
+    // For remote/hybrid jobs, append to the search titles
     const titles = (query as string)
       .split(',')
       .map((t) => t.trim())
       .filter(Boolean)
-      .slice(0, 3);
+      .slice(0, 3)
+      .map((title) => {
+        if (isRemote) return `${title} remote`;
+        if (isHybrid) return `${title} hybrid`;
+        return title;
+      });
 
     const activeSources: string[] = [];
     if (process.env.ADZUNA_APP_ID && process.env.ADZUNA_APP_KEY) activeSources.push('adzuna');
@@ -65,17 +77,25 @@ export async function POST(req: NextRequest) {
 
     // Rank by semantic similarity if Voyage is configured, otherwise take first 10
     let jobsToScore: Job[];
+    let rankingSkipped = false;
 
     const hasEmbedding = voyageConfigured() && Array.isArray(resumeEmbedding) && resumeEmbedding.length > 0;
 
     if (hasEmbedding) {
-      const jobTexts = allJobs.map((j) => `${j.title} ${j.company} ${j.description.slice(0, 400)}`);
-      const jobEmbeddings = await embedBatch(jobTexts);
-      jobsToScore = allJobs
-        .map((job, i) => ({ job, similarity: cosineSimilarity(resumeEmbedding, jobEmbeddings[i] ?? []) }))
-        .sort((a, b) => b.similarity - a.similarity)
-        .slice(0, 10)
-        .map((r) => r.job);
+      try {
+        const jobTexts = allJobs.map((j) => `${j.title} ${j.company} ${j.description.slice(0, 400)}`);
+        const jobEmbeddings = await embedBatch(jobTexts);
+        jobsToScore = allJobs
+          .map((job, i) => ({ job, similarity: cosineSimilarity(resumeEmbedding, jobEmbeddings[i] ?? []) }))
+          .sort((a, b) => b.similarity - a.similarity)
+          .slice(0, 10)
+          .map((r) => r.job);
+      } catch (err) {
+        // If Voyage is rate-limited, skip ranking and just take first 10
+        console.warn('Ranking skipped due to API issue:', err);
+        jobsToScore = allJobs.slice(0, 10);
+        rankingSkipped = true;
+      }
     } else {
       jobsToScore = allJobs.slice(0, 10);
     }
@@ -83,7 +103,7 @@ export async function POST(req: NextRequest) {
     const scoredJobs = await scoreJobsFast(resumeText, jobsToScore, resumeProfile);
     scoredJobs.sort((a, b) => b.score - a.score);
 
-    return NextResponse.json({ jobs: scoredJobs });
+    return NextResponse.json({ jobs: scoredJobs, rankingSkipped });
   } catch (err) {
     console.error('search-jobs error:', err);
     return NextResponse.json({ error: 'Failed to search jobs' }, { status: 500 });

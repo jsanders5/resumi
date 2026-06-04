@@ -25,6 +25,7 @@ async function searchAdzuna(query: string, location: string): Promise<Job[]> {
   url.searchParams.set('results_per_page', '10');
   url.searchParams.set('what', query);
   url.searchParams.set('content-type', 'application/json');
+  url.searchParams.set('max_days_old', '14');
   if (location && location.toLowerCase() !== 'remote') {
     url.searchParams.set('where', location);
   }

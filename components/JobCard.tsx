@@ -81,19 +81,7 @@ export default function JobCard({ job, resumeText, resumeProfile }: { job: Score
       >
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-0.5">
-              <h3 className="text-white font-semibold text-base leading-tight truncate">{job.title}</h3>
-              {job.source && (
-                <span className={`text-xs px-1.5 py-0.5 rounded font-medium shrink-0 ${
-                  job.source === 'linkedin' ? 'bg-blue-600/20 text-blue-400' :
-                  job.source === 'adzuna'   ? 'bg-orange-500/20 text-orange-400' :
-                                              'bg-slate-700 text-slate-400'
-                }`}>
-                  {job.source === 'linkedin' ? 'LinkedIn' :
-                   job.source === 'adzuna'   ? 'Adzuna' : 'JSearch'}
-                </span>
-              )}
-            </div>
+            <h3 className="text-white font-semibold text-base leading-tight truncate">{job.title}</h3>
             <p className="text-slate-400 text-sm">{job.company}</p>
           </div>
           <ScoreBadge score={job.score} />
@@ -136,8 +124,12 @@ export default function JobCard({ job, resumeText, resumeProfile }: { job: Score
           >
             View & Apply <ExternalLink size={11} />
           </a>
-          <span className={`flex items-center gap-1 text-xs transition-colors ${isExpanded ? 'text-indigo-400' : 'text-slate-500'}`}>
-            Details
+          <span className={`flex items-center gap-1 px-2.5 py-1 rounded-md font-medium text-xs transition-all ${
+            isExpanded
+              ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
+              : 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-500/15'
+          }`}>
+            {isExpanded ? 'Hide' : 'View'} Analysis
             <ChevronDown
               size={14}
               className={`transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
@@ -171,7 +163,7 @@ export default function JobCard({ job, resumeText, resumeProfile }: { job: Score
               }`}
             >
               <GitBranch size={12} />
-              Portfolio Projects
+              Project Ideas
               {details && (
                 <span className="ml-1 bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded-full text-xs">
                   {details.recommendations.length}
@@ -186,6 +178,11 @@ export default function JobCard({ job, resumeText, resumeProfile }: { job: Score
 
             {activeTab === 'portfolio' && (
               <div className="flex flex-col gap-3">
+                {!isLoadingDetails && !detailsError && details && (
+                  <p className="text-xs text-slate-500 mb-2">
+                    AI-recommended projects to build and showcase for this role:
+                  </p>
+                )}
                 {isLoadingDetails && (
                   <div className="flex items-center gap-2 text-slate-500 text-sm py-2">
                     <Loader2 size={14} className="animate-spin" />
