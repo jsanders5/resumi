@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getJobDetails } from '@/lib/claude';
+import { getJobDetails, type ResumeProfile } from '@/lib/claude';
 
 export async function POST(req: NextRequest) {
   try {
@@ -7,12 +7,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'ANTHROPIC_API_KEY is not configured' }, { status: 500 });
     }
 
-    const { resumeText, job } = await req.json();
+    const { resumeText, job, resumeProfile } = await req.json();
     if (!resumeText || !job) {
       return NextResponse.json({ error: 'resumeText and job are required' }, { status: 400 });
     }
 
-    const details = await getJobDetails(resumeText, job);
+    const details = await getJobDetails(resumeText, job, resumeProfile);
     return NextResponse.json(details);
   } catch (err) {
     console.error('job-recs error:', err);

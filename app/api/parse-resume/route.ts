@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocumentProxy, extractText } from 'unpdf';
 import { embedText, isConfigured as voyageConfigured } from '@/lib/voyage';
+import { extractResumeProfile } from '@/lib/claude';
 
 async function parsePdf(buffer: Buffer): Promise<string> {
   const pdf = await getDocumentProxy(new Uint8Array(buffer));
@@ -35,10 +36,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Could not extract text from file' }, { status: 400 });
     }
 
-    // Embed the resume once at upload time so searches reuse the cached embedding
-    const embedding = voyageConfigured() ? await embedText(text) : [];
+    // Embed and extract profile for richer context in scoring
+    const [embedding, profile] = await Promise.all([
+      voyageConfigured() ? embedText(text) : Promise.resolve([]),
+      extractResumeProfile(text),
+    ]);
 
-    return NextResponse.json({ text: text.trim(), embedding });
+    return NextResponse.json({ text: text.trim(), embedding, profile });
   } catch (err) {
     console.error('parse-resume error:', err);
     return NextResponse.json({ error: 'Failed to parse resume' }, { status: 500 });

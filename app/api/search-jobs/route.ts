@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'ANTHROPIC_API_KEY is not configured' }, { status: 500 });
     }
 
-    const { query, location, resumeText, resumeEmbedding, turnstileToken } = await req.json();
+    const { query, location, resumeText, resumeEmbedding, resumeProfile, turnstileToken } = await req.json();
     if (!query || !resumeText) {
       return NextResponse.json({ error: 'query and resumeText are required' }, { status: 400 });
     }
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
       jobsToScore = allJobs.slice(0, 10);
     }
 
-    const scoredJobs = await scoreJobsFast(resumeText, jobsToScore);
+    const scoredJobs = await scoreJobsFast(resumeText, jobsToScore, resumeProfile);
     scoredJobs.sort((a, b) => b.score - a.score);
 
     return NextResponse.json({ jobs: scoredJobs });

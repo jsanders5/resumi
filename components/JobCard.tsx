@@ -5,6 +5,7 @@ import { ExternalLink, MapPin, Briefcase, AlertCircle, ChevronDown, Loader2, Bar
 import GitHubCard from './GitHubCard';
 import ScoreAnalysis from './ScoreAnalysis';
 import type { ScoredJob, JobDetails } from '@/lib/types';
+import type { ResumeProfile } from '@/lib/claude';
 
 type Tab = 'analysis' | 'portfolio';
 
@@ -40,7 +41,7 @@ function formatDate(iso: string) {
   }
 }
 
-export default function JobCard({ job, resumeText }: { job: ScoredJob; resumeText: string }) {
+export default function JobCard({ job, resumeText, resumeProfile }: { job: ScoredJob; resumeText: string; resumeProfile?: ResumeProfile | null }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('analysis');
   const [details, setDetails] = useState<JobDetails | null>(null);
@@ -58,7 +59,7 @@ export default function JobCard({ job, resumeText }: { job: ScoredJob; resumeTex
         const res = await fetch('/api/job-recs', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resumeText, job }),
+          body: JSON.stringify({ resumeText, job, resumeProfile }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? 'Failed to load details');

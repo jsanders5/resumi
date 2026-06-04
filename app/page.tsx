@@ -7,6 +7,7 @@ import LocationInput from '@/components/LocationInput';
 import SearchProgress from '@/components/SearchProgress';
 import { Turnstile } from '@marsidev/react-turnstile';
 import type { ScoredJob } from '@/lib/types';
+import type { ResumeProfile } from '@/lib/claude';
 
 type Phase = 'upload' | 'search' | 'results';
 
@@ -21,6 +22,7 @@ export default function Home() {
   const [phase, setPhase] = useState<Phase>('upload');
   const [resumeText, setResumeText] = useState('');
   const [resumeEmbedding, setResumeEmbedding] = useState<number[]>([]);
+  const [resumeProfile, setResumeProfile] = useState<ResumeProfile | null>(null);
   const [turnstileToken, setTurnstileToken] = useState('');
   const [turnstileVerified, setTurnstileVerified] = useState(false);
   const [fileName, setFileName] = useState('');
@@ -71,6 +73,7 @@ export default function Home() {
         if (!res.ok) throw new Error(data.error ?? 'Failed to parse resume');
         setResumeText(data.text);
         setResumeEmbedding(data.embedding ?? []);
+        setResumeProfile(data.profile ?? null);
         setFileName(file.name);
         setPhase('search');
       } catch (err) {
@@ -106,7 +109,7 @@ export default function Home() {
         const res = await fetch('/api/search-jobs', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query, location, resumeText, resumeEmbedding, turnstileToken }),
+          body: JSON.stringify({ query, location, resumeText, resumeEmbedding, resumeProfile, turnstileToken }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? 'Failed to search jobs');
@@ -127,6 +130,7 @@ export default function Home() {
     setPhase('upload');
     setResumeText('');
     setResumeEmbedding([]);
+    setResumeProfile(null);
     setFileName('');
     setQuery('');
     setLocation('');
@@ -269,6 +273,19 @@ export default function Home() {
             <p className="text-slate-400 text-sm mb-8">
               Search live job listings and score them against your resume.
             </p>
+
+            {resumeProfile && (
+              <div className="bg-slate-900 border border-slate-800 rounded-lg px-4 py-3 mb-8">
+                <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Profile</p>
+                <div className="flex flex-wrap gap-2">
+                  <span className="bg-indigo-500/20 text-indigo-400 text-xs px-2 py-1 rounded">{resumeProfile.seniority}</span>
+                  {resumeProfile.topSkills.slice(0, 3).map((skill) => (
+                    <span key={skill} className="bg-slate-800 text-slate-300 text-xs px-2 py-1 rounded">{skill}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <form onSubmit={handleSearch} className="flex flex-col gap-4">
               <div>
                 <label className="block text-xs text-slate-500 mb-1.5">
@@ -345,7 +362,7 @@ export default function Home() {
                   </p>
                   <div className="grid gap-4 sm:grid-cols-2">
                     {jobs.map((job) => (
-                      <JobCard key={job.id} job={job} resumeText={resumeText} />
+                      <JobCard key={job.id} job={job} resumeText={resumeText} resumeProfile={resumeProfile} />
                     ))}
                   </div>
                 </>
