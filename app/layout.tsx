@@ -14,8 +14,33 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Resumio-AI – AI Job Matcher",
-  description: "Upload your resume, find compatible jobs, and get GitHub portfolio recommendations",
+  title: "Resumio-AI – AI Job Matcher & Portfolio Advisor",
+  description: "Free AI job matcher. Upload your resume, search real jobs, get AI compatibility scores, and discover portfolio projects to boost your candidacy.",
+  keywords: ["AI job search", "job matcher", "resume screening", "portfolio projects", "career advice", "job recommendations"],
+  authors: [{ name: "Jake Sanders" }],
+  openGraph: {
+    title: "Resumio-AI – AI Job Matcher & Portfolio Advisor",
+    description: "Free AI job matcher. Upload your resume, search real jobs, get AI compatibility scores, and discover portfolio projects to boost your candidacy.",
+    type: "website",
+    url: "https://resumio-ai.vercel.app",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Resumio-AI – AI Job Matcher & Portfolio Advisor",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary",
+    title: "Resumio-AI – AI Job Matcher & Portfolio Advisor",
+    description: "Free AI job matcher. Upload your resume, search real jobs, get AI compatibility scores, and discover portfolio projects.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 export default function RootLayout({
@@ -30,6 +55,29 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         {children}
+        <Script
+          id="resumio-schema"
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebApplication",
+              name: "Resumio-AI",
+              description: "Free AI job matcher that uploads your resume, searches real jobs, provides AI compatibility scores, and recommends portfolio projects to boost your candidacy.",
+              url: "https://resumio-ai.vercel.app",
+              applicationCategory: "UtilityApplication",
+              offers: {
+                "@type": "Offer",
+                price: "0",
+                priceCurrency: "USD",
+              },
+              author: {
+                "@type": "Person",
+                name: "Jake Sanders",
+              },
+            }),
+          }}
+        />
         <Script
           src="https://cdnjs.buymeacoffee.com/1.0.0/widget.prod.min.js"
           data-name="BMC-Widget"
